@@ -85,7 +85,8 @@ class QSnake(object):
 
         if exploration_chance < random.random():
             direction_num = random.randrange(4)
-            exploration_chance -= step
+            if exploration_chance > 0:
+                exploration_chance -= step
         else:
             direction_num = self.qtable[cur_state].index(max(self.qtable[cur_state]))
 
