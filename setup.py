@@ -9,4 +9,4 @@ setup(
     author='Martin Barksten',
     author_email='martin.barksten@cygni.se',
     url='http://game.snake.cygni.se',
-    packages=['client'])
+    packages=['client'], requires=['colorlog', 'autobahn'])

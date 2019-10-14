@@ -26,7 +26,7 @@ def game_map():
             'tailProtectedForGameTicks': 0,
             'id': 'a5215ec7-ced6-48c9-8209-7006052ee420'
         }, {
-            'name': 'snake.py',
+            'name': 'expert_snake.py',
             'points': 4,
             'positions': [1560, 1514, 1468, 1422, 1376],
             'tailProtectedForGameTicks': 0,

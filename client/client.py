@@ -4,12 +4,11 @@ import logging
 import sys
 
 import colorlog
-from autobahn.asyncio.websocket import (WebSocketClientFactory,
-                                        WebSocketClientProtocol)
-
+from autobahn.asyncio.websocket import (WebSocketClientFactory, WebSocketClientProtocol)
 import asyncio
 import messages
-import snake
+import expert_snake
+import q_snake
 import util
 
 log = logging.getLogger("client")
@@ -29,7 +28,7 @@ class SnakebotProtocol(WebSocketClientProtocol):
     def __init__(self):
         super(WebSocketClientProtocol, self).__init__()
 
-        self.snake = snake.get_snake()
+        self.snake = q_snake.get_snake()
         self.routing = {
             messages.GAME_ENDED: self._game_ended,
             messages.TOURNAMENT_ENDED: self._tournament_ended,
