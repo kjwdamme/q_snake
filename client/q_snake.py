@@ -99,7 +99,7 @@ class QSnake(object):
         else:
             direction = util.Direction.RIGHT
 
-        new_state = self.create_state(game_map, player_coords + direction[1])
+        new_state = self.create_state(game_map, player_coords[0] + direction.value[1])
 
         self.qtable[cur_state][direction_num] = (1 - learning_rate) * self.qtable[cur_state][direction_num] + learning_rate * (cur_state.calc_reward() + discount_rate * max(self.qtable[new_state]))
 
