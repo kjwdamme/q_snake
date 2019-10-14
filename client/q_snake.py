@@ -83,7 +83,11 @@ class QSnake(object):
         exploration_chance = 1
         step = .1
 
-        direction_num = random.randrange(4) if exploration_chance < random.random() else self.qtable[cur_state].index(max(self.qtable[cur_state]))
+        if exploration_chance < random.random():
+            direction_num = random.randrange(4)
+            exploration_chance -= step
+        else:
+            direction_num = self.qtable[cur_state].index(max(self.qtable[cur_state]))
 
         if direction_num == 0:
             direction = util.Direction.DOWN
@@ -98,26 +102,7 @@ class QSnake(object):
 
         self.qtable[cur_state][direction_num] = (1 - learning_rate) * self.qtable[cur_state][direction_num] + learning_rate * (cur_state.calc_reward() + discount_rate * max(self.qtable[new_state]))
 
-        exploration_chance -= step
         return direction
-
-        # else:
-        #     max_q = max(self.qtable[cur_state])
-        #
-        #     if max_q == 0:
-        #         direction = util.Direction.DOWN
-        #     elif max_q == 1:
-        #         direction = util.Direction.UP
-        #     elif max_q == 2:
-        #         direction = util.Direction.LEFT
-        #     else:
-        #         direction = util.Direction.RIGHT
-        #
-        #     new_state = self.create_state(game_map, player_coords + direction[1])
-        #
-        #     self.qtable[cur_state][max_q] = (1 - learning_rate) * self.qtable[cur_state][max_q] + learning_rate * (cur_state.calc_reward() + discount_rate * max(self.qtable[new_state]))
-        #
-        #     return direction
 
     def on_game_ended(self):
         log.debug('The game has ended!')
