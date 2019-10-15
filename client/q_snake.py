@@ -1,6 +1,7 @@
 import logging
 import util
 import random
+import itertools
 
 log = logging.getLogger("client.snake")
 
@@ -13,6 +14,9 @@ class State(object):
         self.obstacle_left = False
         self.obstacle_above = False
         self.on_obstacle = False
+
+    def get_tuple(self):
+        return self.food_left, self.food_above, self.on_food, self.obstacle_left, self.obstacle_above, self.on_obstacle
 
     def calc_reward(self):
         total_reward = 0
@@ -37,8 +41,25 @@ class QSnake(object):
     def __init__(self):
         self.name = "q learing slang"
         self.snake_id = None
-        self.qtable = {}
+        self.qtable = self.init_qtable()
         self.prev_state = State()
+
+    def init_qtable(self):
+        qtable = {}
+        bool_combinations = list(itertools.product([True, False], repeat=6))
+
+        for comb in bool_combinations:
+            state = State()
+            state.food_left = comb[0]
+            state.food_above = comb[1]
+            state.on_food = comb[2]
+            state.obstacle_left = comb[3]
+            state.obstacle_above = comb[4]
+            state.on_obstacle = comb[5]
+
+            qtable[state.get_tuple()] = [0, 0, 0, 0]
+
+        return qtable
 
     def create_state(self, game_map, player_coords):
         new_state = State()
@@ -76,7 +97,8 @@ class QSnake(object):
         player_coords = util.translate_positions(player['positions'], width)
 
         cur_state = self.create_state(game_map, player_coords)
-        self.qtable[cur_state] = [0, 0, 0, 0]
+
+        # self.qtable[cur_state] = [0, 0, 0, 0]
 
         learning_rate = .7
         discount_rate = .9
@@ -88,7 +110,7 @@ class QSnake(object):
             if exploration_chance > 0:
                 exploration_chance -= step
         else:
-            direction_num = self.qtable[cur_state].index(max(self.qtable[cur_state]))
+            direction_num = self.qtable[cur_state.get_tuple()].index(max(self.qtable[cur_state.get_tuple()]))
 
         if direction_num == 0:
             direction = util.Direction.DOWN
@@ -101,7 +123,13 @@ class QSnake(object):
 
         new_state = self.create_state(game_map, player_coords[0] + direction.value[1])
 
-        self.qtable[cur_state][direction_num] = (1 - learning_rate) * self.qtable[cur_state][direction_num] + learning_rate * (cur_state.calc_reward() + discount_rate * max(self.qtable[new_state]))
+        memory = (1 - learning_rate) * self.qtable[cur_state.get_tuple()][direction_num]
+        reward = cur_state.calc_reward()
+        max_quality_step = max(self.qtable[new_state.get_tuple()])
+
+        # self.qtable[cur_state][direction_num] = (1 - learning_rate) * self.qtable[cur_state][direction_num] + learning_rate * (cur_state.calc_reward() + discount_rate * max(self.qtable[new_state]))
+
+        self.qtable[cur_state.get_tuple()][direction_num] = memory + learning_rate * (reward + discount_rate * max_quality_step)
 
         return direction
 
