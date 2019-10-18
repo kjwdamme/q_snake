@@ -21,17 +21,15 @@ class State(object):
     def calc_reward(self):
         total_reward = 0
 
+        total_reward += -5
+
         if self.food_left:
-            total_reward += -1
-        elif self.food_above:
-            total_reward += -1
-        elif self.on_food:
+            total_reward += 5
+        if self.food_above:
+            total_reward += 5
+        if self.on_food:
             total_reward += 100
-        elif self.obstacle_left:
-            total_reward += -1
-        elif self.obstacle_above:
-            total_reward += -1
-        elif self.on_obstacle:
+        if self.on_obstacle:
             total_reward += -100
 
         return total_reward
@@ -102,7 +100,7 @@ class QSnake(object):
         exploration_chance = 1
         step = .1
 
-        if exploration_chance < random.random():
+        if exploration_chance > random.random():
             direction_num = random.randrange(4)
             if exploration_chance > 0:
                 exploration_chance -= step
@@ -124,8 +122,6 @@ class QSnake(object):
         memory = (1 - learning_rate) * self.qtable[cur_state.get_tuple()][direction_num]
         reward = cur_state.calc_reward()
         max_quality_step = max(self.qtable[new_state.get_tuple()])
-
-        # self.qtable[cur_state][direction_num] = (1 - learning_rate) * self.qtable[cur_state][direction_num] + learning_rate * (cur_state.calc_reward() + discount_rate * max(self.qtable[new_state]))
 
         self.qtable[cur_state.get_tuple()][direction_num] = memory + learning_rate * (reward + discount_rate * max_quality_step)
 
