@@ -95,10 +95,7 @@ class QSnake(object):
 
         player = next(filter(lambda x: x['name'] == self.name, game_map.game_map['snakeInfos']), None)
         player_coords = util.translate_positions(player['positions'], width)
-
         cur_state = self.create_state(game_map, player_coords)
-
-        # self.qtable[cur_state] = [0, 0, 0, 0]
 
         learning_rate = .7
         discount_rate = .9
@@ -121,7 +118,8 @@ class QSnake(object):
         else:
             direction = util.Direction.RIGHT
 
-        new_state = self.create_state(game_map, player_coords[0] + direction.value[1])
+        new_pos = [(player_coords[0][0] + direction.value[1][0], player_coords[0][1] + direction.value[1][1])]
+        new_state = self.create_state(game_map, new_pos)
 
         memory = (1 - learning_rate) * self.qtable[cur_state.get_tuple()][direction_num]
         reward = cur_state.calc_reward()
