@@ -9,6 +9,7 @@ import asyncio
 import messages
 import expert_snake
 import q_snake
+import dqn_snake
 import util
 
 log = logging.getLogger("client")
