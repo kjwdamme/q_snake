@@ -6,7 +6,7 @@ log = logging.getLogger("client.snake")
 
 class ExpertSnake(object):
     def __init__(self):
-        self.name = "expert slang"
+        self.name = "slang"
         self.snake_id = None
 
     def right_available(self, curr_pos, game_map):

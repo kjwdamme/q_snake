@@ -2,6 +2,7 @@ import logging
 import util
 import random
 import itertools
+import csv
 
 log = logging.getLogger("client.snake")
 
@@ -39,7 +40,7 @@ class QSnake(object):
     def __init__(self):
         self.name = "q learing slang"
         self.snake_id = None
-        self.qtable = self.init_qtable()
+        self.qtable = self.read_qtable()
         self.prev_state = State()
 
     def init_qtable(self):
@@ -127,13 +128,28 @@ class QSnake(object):
 
         return direction
 
+    def save_qtable(self):
+        with open('qtable.csv', 'w') as csv_file:
+            writer = csv.writer(csv_file)
+            for key, value in self.qtable.items():
+                writer.writerow([key, value])
+
+    def read_qtable(self):
+        with open('../qtable.csv') as csv_file:
+            reader = csv.reader(csv_file)
+            dictio = dict(reader)
+            return dictio
+
     def on_game_ended(self):
+        self.save_qtable()
         log.debug('The game has ended!')
 
     def on_snake_dead(self, reason):
+        self.save_qtable()
         log.debug('Our snake died because %s', reason)
 
     def on_game_starting(self):
+        self.read_qtable()
         log.debug('Game is starting!')
 
     def on_player_registered(self, snake_id):
