@@ -14,24 +14,73 @@ import numpy as np
 log = logging.getLogger("client.snake")
 
 
+
 class DQNSnake(object):
     def __init__(self):
         self.actions = 3
+        self.apple_reward = 100
+        self.death_reward = -100
+        self.life_reward = 1
+        self.score = 0
+        self.episode_length = 0
+        self.episode_reward = 0
+        self.experience_buffer = []
         self.agent = DQAgent(actions)
+        self.action = random.randint(0, actions)
+        self.last_move = util.Direction.DOWN
 
     def get_next_move(self, game_map):
+        reward = self.life_reward
         width = game_map.game_map['width']
-        players = game_map.game_map['snakeInfos']
-        player = next(filter(lambda x: x['name'] == self.name, players), None)
-        player_pos = util.translate_positions(player['positions'], width)
+        player = next(filter(lambda x: x['name'] == self.name, game_map.game_map['snakeInfos']), None)
+        player_coords = util.translate_positions(player['positions'], width)
+        food_coords = util.translate_positions(game_map.game_map['foodPositions'], width)
+        obstacle_coords = util.translate_positions(game_map.game_map['obstaclePositions'], width)
 
-        action = random.randint(0, actions)
+        if self.action == 0 and self.last_move != util.Direction.UP:
+            direction = util.Direction.DOWN
+        elif self.action == 1 and self.last_move != util.Direction.DOWN:
+            direction = util.Direction.UP
+        elif self.action == 2 and self.last_move != util.Direction.RIGHT:
+            direction = util.Direction.LEFT
+        elif self.action == 3 and self.last_move != util.Direction.LEFT:
+            direction = util.Direction.RIGHT
+        else:
+            direction = self.last_move
 
+        new_pos = [(player_coords[0][0] + direction.value[1][0], player_coords[0][1] + direction.value[1][1])]
+
+        if len(food_coords) > 0:
+            for food in food_coords:
+                if food == new_pos[0]:
+                    self.score += 1
+                    reward = self.apple_reward
+
+        if len(obstacle_coords) > 0:
+            for obstacle in obstacle_coords:
+                if obstacle == new_pos[0]:
+                    reward = self.death_reward
+
+        if util.Map.is_coordinate_out_of_bounds(game_map, new_pos):
+            reward = self.death_reward
+
+            # Add SARS tuple to experience_buffer
+        # experience_buffer.append((np.asarray([game_map]), self.action, reward, np.asarray([next_state])))
+        episode_reward += reward
+
+        # Change current state
+        # state = list(next_state)
+
+        # Poll the DQAgent to get the next action
+        action = self.DQA.get_action(np.asarray([game_map]))
+
+        return direction
 
     def on_game_ended(self):
         log.debug('The game has ended!')
 
     def on_snake_dead(self, reason):
+
         log.debug('Our snake died because %s', reason)
 
     def on_game_starting(self):
