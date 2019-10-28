@@ -1,93 +1,96 @@
 import logging
 import util
 import random
-import itertools
 import csv
+import itertools
 
 log = logging.getLogger("client.snake")
 
 
 class State(object):
     def __init__(self):
-        self.food_left = False
-        self.food_above = False
-        self.on_food = False
         self.obstacle_left = False
+        self.obstacle_right = False
         self.obstacle_above = False
+        self.obstacle_below = False
+        self.food_left = False
+        self.food_right = False
+        self.food_above = False
+        self.food_below = False
+        self.on_food = False
         self.on_obstacle = False
+        self.up = False
+        self.down = False
+        self.right = False
+        self.left = False
 
     def get_tuple(self):
-        return self.food_left, self.food_above, self.on_food, self.obstacle_left, self.obstacle_above, self.on_obstacle
-
-    def calc_reward(self):
-        total_reward = 0
-
-        total_reward += -5
-
-        if self.food_left:
-            total_reward += 5
-        if self.food_above:
-            total_reward += 5
-        if self.on_food:
-            total_reward += 100
-        if self.on_obstacle:
-            total_reward += -100
-
-        return total_reward
+        return self.obstacle_left,\
+               self.obstacle_right,\
+               self.obstacle_above,\
+               self.obstacle_below,\
+               self.food_left,\
+               self.food_right,\
+               self.food_above,\
+               self.food_below
 
 
 class QSnake(object):
     def __init__(self):
-        self.name = "q learing slang"
+        self.name = "pik"
         self.snake_id = None
         self.qtable = self.read_qtable()
-        self.prev_state = State()
-
-    def init_qtable(self):
-        qtable = {}
-        bool_combinations = list(itertools.product([True, False], repeat=6))
-
-        for comb in bool_combinations:
-            state = State()
-            state.food_left = comb[0]
-            state.food_above = comb[1]
-            state.on_food = comb[2]
-            state.obstacle_left = comb[3]
-            state.obstacle_above = comb[4]
-            state.on_obstacle = comb[5]
-
-            qtable[state.get_tuple()] = [0, 0, 0, 0]
-
-        return qtable
+        self.last_move = util.Direction.UP
 
     def create_state(self, game_map, player_coords):
-        new_state = State()
-
         width = game_map.game_map['width']
+        state = State()
 
         food_coords = util.translate_positions(game_map.game_map['foodPositions'], width)
         obstacle_coords = util.translate_positions(game_map.game_map['obstaclePositions'], width)
+        head_coords = player_coords[0]
+        tail_coords = player_coords[2:] if len(player_coords) > 2 else []
 
         if len(food_coords) > 0:
             distances = []
             for food in food_coords:
-                distances.append((util.get_manhattan_distance(player_coords[0], food), food))
+                distances.append((util.get_manhattan_distance(head_coords, food), food))
 
             food_to_catch = min(distances, key=lambda t: t[0])[1]
 
-            new_state.food_left = True if food_to_catch[0] < player_coords[0][0] else False
+            if food_to_catch[0] < head_coords[0]:
+                state.food_left = True
+            if food_to_catch[0] > head_coords[0]:
+                state.food_right = True
+            if food_to_catch[1] < head_coords[1]:
+                state.food_above = True
+            if food_to_catch[1] > head_coords[1]:
+                state.food_below = True
+            if food_to_catch[0] == head_coords[0] and food_to_catch[1] == head_coords[1]:
+                state.on_food = True
 
-            new_state.food_above = True if food_to_catch[1] < player_coords[0][1] else False
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (1, 0))):
+            state.obstacle_right = True
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (-1, 0))):
+            state.obstacle_left = True
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (0, -1))):
+            state.obstacle_above = True
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (0, 1))):
+            state.obstacle_below = True
 
-            new_state.on_food = True if food_to_catch == player_coords[0] else False
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (1, 0))) or game_map.is_coordinate_out_of_bounds(self.calc_new_pos(head_coords, (1, 0))):
+            state.obstacle_right = True
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (-1, 0))) or game_map.is_coordinate_out_of_bounds(self.calc_new_pos(head_coords, (-1, 0))):
+            state.obstacle_left = True
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (0, -1))) or game_map.is_coordinate_out_of_bounds(self.calc_new_pos(head_coords, (0, -1))):
+            state.obstacle_above = True
+        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (0, 1))) or game_map.is_coordinate_out_of_bounds(self.calc_new_pos(head_coords, (0, 1))):
+            state.obstacle_below = True
 
-            if len(obstacle_coords) > 0:
-                for obstacle in obstacle_coords:
-                    new_state.obstacle_left = True if player_coords[0][0] > obstacle[0] > food_to_catch[0] else False
-                    new_state.obstacle_above = True if player_coords[0][1] > obstacle[0] > food_to_catch[1] else False
-                    new_state.on_obstacle = True if obstacle == player_coords[0] else False
+        return state
 
-        return new_state
+    def calc_new_pos(self, cur_pos, delta):
+        return cur_pos[0] + delta[0], cur_pos[1] + delta[1]
 
     def get_next_move(self, game_map):
         width = game_map.game_map['width']
@@ -96,15 +99,15 @@ class QSnake(object):
         player_coords = util.translate_positions(player['positions'], width)
         cur_state = self.create_state(game_map, player_coords)
 
+        if cur_state.get_tuple() not in self.qtable:
+            self.qtable[cur_state.get_tuple()] = [0, 0, 0, 0]
+
         learning_rate = .7
         discount_rate = .9
-        exploration_chance = 1
-        step = .1
+        exploration_chance = 0
 
         if exploration_chance > random.random():
             direction_num = random.randrange(4)
-            if exploration_chance > 0:
-                exploration_chance -= step
         else:
             direction_num = self.qtable[cur_state.get_tuple()].index(max(self.qtable[cur_state.get_tuple()]))
 
@@ -117,16 +120,48 @@ class QSnake(object):
         else:
             direction = util.Direction.RIGHT
 
-        new_pos = [(player_coords[0][0] + direction.value[1][0], player_coords[0][1] + direction.value[1][1])]
-        new_state = self.create_state(game_map, new_pos)
+        new_pos = (player_coords[0][0] + direction.value[1][0], player_coords[0][1] + direction.value[1][1])
+        new_state = self.create_state(game_map, [new_pos])
 
-        memory = (1 - learning_rate) * self.qtable[cur_state.get_tuple()][direction_num]
-        reward = cur_state.calc_reward()
+        if new_state.get_tuple() not in self.qtable:
+            self.qtable[new_state.get_tuple()] = [0, 0, 0, 0]
+
+        curr_qvalue = self.qtable[cur_state.get_tuple()][direction_num]
+        memory = (1 - learning_rate) * curr_qvalue
+        reward = self.calc_reward(game_map, player_coords, new_pos)
         max_quality_step = max(self.qtable[new_state.get_tuple()])
 
-        self.qtable[cur_state.get_tuple()][direction_num] = memory + learning_rate * (reward + discount_rate * max_quality_step)
+        q_value = memory + learning_rate * (reward + discount_rate * max_quality_step)
+
+        self.qtable[cur_state.get_tuple()][direction_num] = q_value
 
         return direction
+
+    def calc_reward(self, game_map, cur_pos, new_head_pos):
+        width = game_map.game_map['width']
+        reward = 0
+
+        food_coords = util.translate_positions(game_map.game_map['foodPositions'], width)
+        obstacle_coords = util.translate_positions(game_map.game_map['obstaclePositions'], width)
+
+        if new_head_pos in food_coords:
+            reward += 100
+
+        if new_head_pos in obstacle_coords or new_head_pos in cur_pos:
+            reward -= 100
+
+        enemies = filter(lambda x: x['name'] != self.name, game_map.game_map['snakeInfos'])
+        enemy_positions = []
+        for enemy in enemies:
+            enemy_positions.append(util.translate_positions(enemy['positions'], width))
+
+        if new_head_pos in enemy_positions:
+            reward -= 100
+
+        if reward == 0:
+            reward += 20
+
+        return reward
 
     def save_qtable(self):
         with open('qtable.csv', 'w') as csv_file:
@@ -135,10 +170,24 @@ class QSnake(object):
                 writer.writerow([key, value])
 
     def read_qtable(self):
-        with open('../qtable.csv') as csv_file:
+        with open('qtable.csv') as csv_file:
             reader = csv.reader(csv_file)
             dictio = dict(reader)
-            return dictio
+            new_dict = {}
+            for key in dictio:
+                l = []
+                tup_arr = key.replace('(', '').replace(')', '').split(", ")
+                for tup in tup_arr:
+                    l.append(tup == 'True')
+                tup = tuple(l)
+                array = dictio[key].replace('[', '').replace(']', '').split(', ')
+
+                i = []
+                for item in array:
+                    i.append(float(item))
+                new_dict[tup] = i
+
+            return new_dict
 
     def on_game_ended(self):
         self.save_qtable()
@@ -149,7 +198,7 @@ class QSnake(object):
         log.debug('Our snake died because %s', reason)
 
     def on_game_starting(self):
-        self.read_qtable()
+        # self.read_qtable()
         log.debug('Game is starting!')
 
     def on_player_registered(self, snake_id):
