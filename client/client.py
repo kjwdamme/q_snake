@@ -7,10 +7,11 @@ import colorlog
 from autobahn.asyncio.websocket import (WebSocketClientFactory, WebSocketClientProtocol)
 import asyncio
 import messages
-import expert_snake
-import q_snake
-# import dqn_snake
+# import expert_snake
+# import q_snake
+import dqn_snake
 import util
+import dqn_agent
 
 log = logging.getLogger("client")
 log_levels = {
@@ -24,12 +25,14 @@ log_names = list(log_levels)
 
 loop = asyncio.get_event_loop()
 
+agent = dqn_agent.get_agent(8, 4)
+
 
 class SnakebotProtocol(WebSocketClientProtocol):
     def __init__(self):
         super(WebSocketClientProtocol, self).__init__()
-
-        self.snake = q_snake.get_snake()
+        self.snake = dqn_snake.get_snake(agent)
+        # self.snake = q_snake.get_snake()
         self.routing = {
             messages.GAME_ENDED: self._game_ended,
             messages.TOURNAMENT_ENDED: self._tournament_ended,
@@ -145,13 +148,11 @@ def main():
                                                          args.venue))
     factory.protocol = SnakebotProtocol
 
-    coro = loop.create_connection(factory, args.host, args.port)
-    loop.run_until_complete(coro)
+    while True:
+        coro = loop.create_connection(factory, args.host, args.port)
+        loop.run_until_complete(coro)
 
-    loop.run_forever()
-    loop.close()
-    sys.exit(0)
-
+        loop.run_forever()
 
 def _parse_args():
     parser = argparse.ArgumentParser(
@@ -178,6 +179,13 @@ def _parse_args():
         help='The log level for the client')
 
     return parser.parse_args()
+
+
+def save():
+    agent.save()
+
+import atexit
+atexit.register(save)
 
 
 def _set_up_logging(args):

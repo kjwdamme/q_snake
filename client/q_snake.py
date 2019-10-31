@@ -2,7 +2,6 @@ import logging
 import util
 import random
 import csv
-import itertools
 
 log = logging.getLogger("client.snake")
 
@@ -17,12 +16,6 @@ class State(object):
         self.food_right = False
         self.food_above = False
         self.food_below = False
-        self.on_food = False
-        self.on_obstacle = False
-        self.up = False
-        self.down = False
-        self.right = False
-        self.left = False
 
     def get_tuple(self):
         return self.obstacle_left,\
@@ -47,9 +40,7 @@ class QSnake(object):
         state = State()
 
         food_coords = util.translate_positions(game_map.game_map['foodPositions'], width)
-        obstacle_coords = util.translate_positions(game_map.game_map['obstaclePositions'], width)
         head_coords = player_coords[0]
-        tail_coords = player_coords[2:] if len(player_coords) > 2 else []
 
         if len(food_coords) > 0:
             distances = []
@@ -68,15 +59,6 @@ class QSnake(object):
                 state.food_below = True
             if food_to_catch[0] == head_coords[0] and food_to_catch[1] == head_coords[1]:
                 state.on_food = True
-
-        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (1, 0))):
-            state.obstacle_right = True
-        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (-1, 0))):
-            state.obstacle_left = True
-        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (0, -1))):
-            state.obstacle_above = True
-        if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (0, 1))):
-            state.obstacle_below = True
 
         if not game_map.is_tile_available_for_movement(self.calc_new_pos(head_coords, (1, 0))) or game_map.is_coordinate_out_of_bounds(self.calc_new_pos(head_coords, (1, 0))):
             state.obstacle_right = True
@@ -117,8 +99,10 @@ class QSnake(object):
             direction = util.Direction.UP
         elif direction_num == 2:
             direction = util.Direction.LEFT
-        else:
+        elif direction_num == 3:
             direction = util.Direction.RIGHT
+        else:
+            print("That should not be possible")
 
         new_pos = (player_coords[0][0] + direction.value[1][0], player_coords[0][1] + direction.value[1][1])
         new_state = self.create_state(game_map, [new_pos])

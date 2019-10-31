@@ -1,82 +1,84 @@
 import logging
 import util
-from keras.optimizers import Adam
-from keras.models import Sequential
-from keras.layers.core import Dense, Dropout
-import random
-import numpy as np
-import pandas as pd
-from operator import add
-from DQAgent import DQAgent
-from keras.utils import to_categorical
-import numpy as np
+import state
 
 log = logging.getLogger("client.snake")
 
 
-
 class DQNSnake(object):
-    def __init__(self):
-        self.actions = 3
-        self.apple_reward = 100
-        self.death_reward = -100
-        self.life_reward = 1
-        self.score = 0
-        self.episode_length = 0
-        self.episode_reward = 0
-        self.experience_buffer = []
-        self.agent = DQAgent(actions)
-        self.action = random.randint(0, actions)
-        self.last_move = util.Direction.DOWN
+    def __init__(self, agent):
+        self.name = "dqn snake"
+        self.agent = agent
+
+    def calc_new_pos(self, cur_pos, delta):
+        return cur_pos[0] + delta[0], cur_pos[1] + delta[1]
 
     def get_next_move(self, game_map):
-        reward = self.life_reward
+        # initialize gym environment and the agent
         width = game_map.game_map['width']
+
         player = next(filter(lambda x: x['name'] == self.name, game_map.game_map['snakeInfos']), None)
         player_coords = util.translate_positions(player['positions'], width)
-        food_coords = util.translate_positions(game_map.game_map['foodPositions'], width)
-        obstacle_coords = util.translate_positions(game_map.game_map['obstaclePositions'], width)
 
-        if self.action == 0 and self.last_move != util.Direction.UP:
+        # reset state in the beginning of each game
+        # state = self.create_state(game_map, player_coords)
+        curr_state = state.create_state(game_map, player_coords)
+
+        direction_num = self.agent.act(curr_state.get_array())
+
+        if direction_num == 0:
             direction = util.Direction.DOWN
-        elif self.action == 1 and self.last_move != util.Direction.DOWN:
+        elif direction_num == 1:
             direction = util.Direction.UP
-        elif self.action == 2 and self.last_move != util.Direction.RIGHT:
+        elif direction_num == 2:
             direction = util.Direction.LEFT
-        elif self.action == 3 and self.last_move != util.Direction.LEFT:
+        elif direction_num == 3:
             direction = util.Direction.RIGHT
         else:
-            direction = self.last_move
+            print("That should not be possible")
 
-        new_pos = [(player_coords[0][0] + direction.value[1][0], player_coords[0][1] + direction.value[1][1])]
+        new_pos = self.calc_new_pos(player_coords[0], direction.value[1])
+        # next_state = self.create_state(game_map, [new_pos])
+        next_state = state.create_state(game_map, [new_pos])
 
-        if len(food_coords) > 0:
-            for food in food_coords:
-                if food == new_pos[0]:
-                    self.score += 1
-                    reward = self.apple_reward
+        reward = self.calc_reward(game_map, player_coords[0], new_pos)
 
-        if len(obstacle_coords) > 0:
-            for obstacle in obstacle_coords:
-                if obstacle == new_pos[0]:
-                    reward = self.death_reward
+        # Remember the previous state, action, reward, and done
+        self.agent.remember(curr_state.get_array(), direction_num, reward, next_state.get_array())
 
-        if util.Map.is_coordinate_out_of_bounds(game_map, new_pos):
-            reward = self.death_reward
-
-            # Add SARS tuple to experience_buffer
-        # experience_buffer.append((np.asarray([game_map]), self.action, reward, np.asarray([next_state])))
-        episode_reward += reward
-
-        # Change current state
-        # state = list(next_state)
-
-        # Poll the DQAgent to get the next action
-        action = self.DQA.get_action(np.asarray([game_map]))
+        # train the agent with the experience of the episode
 
         return direction
 
+    def calc_reward(self, game_map, cur_pos, new_head_pos):
+        width = game_map.game_map['width']
+        reward = 0
+
+        food_coords = util.translate_positions(game_map.game_map['foodPositions'], width)
+        obstacle_coords = util.translate_positions(game_map.game_map['obstaclePositions'], width)
+
+        if new_head_pos in food_coords:
+            reward += 100
+
+        if new_head_pos in obstacle_coords or new_head_pos in cur_pos:
+            reward -= 100
+
+        enemies = filter(lambda x: x['name'] != self.name, game_map.game_map['snakeInfos'])
+        enemy_positions = []
+        for enemy in enemies:
+            enemy_positions.append(util.translate_positions(enemy['positions'], width))
+
+        if new_head_pos in enemy_positions:
+            reward -= 100
+
+        if reward == 0:
+            reward += 20
+
+        return reward
+
     def on_game_ended(self):
+        self.agent.replay(5)
+
         log.debug('The game has ended!')
 
     def on_snake_dead(self, reason):
@@ -102,5 +104,5 @@ class DQNSnake(object):
                       is_alive))
 
 
-def get_snake():
-    return DQNSnake()
+def get_snake(agent):
+    return DQNSnake(agent)
